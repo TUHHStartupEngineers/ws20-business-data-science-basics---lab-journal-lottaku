@@ -414,7 +414,7 @@ div.tocify {
 <p>This is an <code>.Rmd</code> file. It is plain text with special features. Any time you write just like this, it will be compiled to normal text in the website. If you put a # in front of your text, it will create a top level-header.</p>
 <div id="my-first-post" class="section level1">
 <h1><span class="header-section-number">1</span> My first post</h1>
-<p>Last compiled: 2020-11-21</p>
+<p>Last compiled: 2020-11-25</p>
 <p>Notice that whatever you define as a top level header, automatically gets put into the table of contents bar on the left.</p>
 <div id="second-level-header" class="section level2">
 <h2><span class="header-section-number">1.1</span> Second level header</h2>
@@ -427,7 +427,7 @@ div.tocify {
 </div>
 <div id="my-second-post-note-the-order" class="section level1">
 <h1><span class="header-section-number">2</span> My second post (note the order)</h1>
-<p>Last compiled: 2020-11-21</p>
+<p>Last compiled: 2020-11-25</p>
 <p>I’m writing this tutorial going from the top down. And, this is how it will be printed. So, notice the second post is second in the list. If you want your most recent post to be at the top, then make a new post starting at the top. If you want the oldest first, do, then keep adding to the bottom</p>
 </div>
 <div id="adding-r-stuff" class="section level1">
@@ -438,6 +438,92 @@ div.tocify {
 hist(samples)</code></pre>
 <p><img src="journal_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
 <p>When you knit this R Markdown document, you will see that the histogram is printed to the page, along with the R code. This document can be set up to hide the R code in the webpage, just delete the comment (hashtag) from the cold folding option in the yaml header up top. For purposes of letting yourself see the code, and me see the code, best to keep it the way that it is. You’ll learn that all of these things and more can be customized in each R code block.</p>
+</div>
+<div id="challenge-1" class="section level1">
+<h1><span class="header-section-number">4</span> Challenge 1</h1>
+<pre class="r"><code>#Libraries----
+
+library(tidyverse)
+library(readxl)
+library(lubridate)
+
+#Load xlxs----
+
+bike_orderlines_wrangled_tbl &lt;- read_excel(&quot;/Users/Lotta/Documents/Data Science/DS_101/00_data/01_bike_sales/02_wrangled_data/bike_orderlines.xlsx&quot;)
+
+#sales by location----
+bikecity_orderlines_wrangled_tbl &lt;- bike_orderlines_wrangled_tbl %&gt;%
+  separate(col = &quot;location&quot;,
+           into = c(&quot;city&quot;, &quot;state&quot;),
+           sep = &quot;,&quot;,
+           convert = T)
+bikecity_orderlines_wrangled_tbl%&gt;%
+  group_by(state)%&gt;%
+  summarise(total_sales = sum(sales))%&gt;%
+  mutate(sales_text = scales::dollar(total_sales, big.mark = &quot;.&quot;, 
+                                     decimal.mark = &quot;,&quot;, 
+                                     prefix = &quot;&quot;, 
+                                     suffix = &quot; €&quot;))%&gt;%
+
+#bikecity_orderlines_wrangled_tbl%&gt;%
+  ggplot(aes(x=state,y=total_sales)) +
+  
+  # Geometries
+  geom_col(fill = &quot;#CC99FF&quot;) + # Use geom_col for a bar plot
+  #geom_label(aes(label = sales_text)) + # Adding labels to the bars
+  #geom_smooth(method = &quot;lm&quot;, se = FALSE) + # Adding a trendline
+  
+  # Formatting
+  # scale_y_continuous(labels = scales::dollar) + # Change the y-axis. 
+  # Again, we have to adjust it for euro values
+  scale_y_continuous(labels = scales::dollar_format(big.mark = &quot;.&quot;, 
+                                                    decimal.mark = &quot;,&quot;, 
+                                                    prefix = &quot;&quot;, 
+                                                    suffix = &quot; €&quot;)) +
+  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  
+  labs(
+    title    = &quot;Revenue by state&quot;,
+    x = &quot;&quot;, # Override defaults for x and y
+    y = &quot;Revenue&quot;
+  )</code></pre>
+<p><img src="journal_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<pre class="r"><code>#sales by location and year----
+
+bikecity_orderlines_wrangled_tbl%&gt;%
+  select(state,order_date,sales)%&gt;%
+  mutate(year = year(order_date))%&gt;%
+  group_by(year,state)%&gt;%
+  summarise(total_sales = sum(sales))%&gt;%
+  mutate(sales_text = scales::dollar(total_sales, big.mark = &quot;.&quot;, 
+                                     decimal.mark = &quot;,&quot;, 
+                                     prefix = &quot;&quot;, 
+                                     suffix = &quot; €&quot;))%&gt;%
+  ggplot(aes(x=year,y=total_sales), fill = state) +
+  
+  # Geometries
+  geom_col(fill = &quot;#CC99FF&quot;) + # Use geom_col for a bar plot
+  #geom_label(aes(label = sales_text)) + # Adding labels to the bars
+  #geom_smooth(method = &quot;lm&quot;, se = FALSE) + # Adding a trendline
+  facet_wrap(~ state) +
+  
+  # Formatting
+  #scale_y_continuous(labels = scales::dollar) + # Change the y-axis. 
+  # Again, we have to adjust it for euro values
+  scale_y_continuous(labels = scales::dollar_format(big.mark = &quot;.&quot;, 
+                                                    decimal.mark = &quot;,&quot;, 
+                                                    prefix = &quot;&quot;, 
+                                                    suffix = &quot; €&quot;)) +
+  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  
+  labs(
+    title    = &quot;Revenue by state and year&quot;,
+    x = &quot;&quot;, # Override defaults for x and y
+    y = &quot;Revenue&quot;
+  )</code></pre>
+<p><img src="journal_files/figure-html/unnamed-chunk-2-2.png" width="672" /></p>
 </div>
 
 
