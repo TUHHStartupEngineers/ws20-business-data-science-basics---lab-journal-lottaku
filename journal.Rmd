@@ -89,8 +89,7 @@ bikecity_orderlines_wrangled_tbl%>%
   #geom_smooth(method = "lm", se = FALSE) + # Adding a trendline
   
   # Formatting
-  # scale_y_continuous(labels = scales::dollar) + # Change the y-axis. 
-  # Again, we have to adjust it for euro values
+  
   scale_y_continuous(labels = scales::dollar_format(big.mark = ".", 
                                                     decimal.mark = ",", 
                                                     prefix = "", 
@@ -100,7 +99,7 @@ bikecity_orderlines_wrangled_tbl%>%
   
   labs(
     title    = "Revenue by state",
-    x = "", # Override defaults for x and y
+    x = "", 
     y = "Revenue"
   )
 
