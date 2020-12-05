@@ -79,17 +79,9 @@ bikecity_orderlines_wrangled_tbl%>%
                                      decimal.mark = ",", 
                                      prefix = "", 
                                      suffix = " €"))%>%
-
-#bikecity_orderlines_wrangled_tbl%>%
   ggplot(aes(x=state,y=total_sales)) +
   
-  # Geometries
-  geom_col(fill = "#CC99FF") + # Use geom_col for a bar plot
-  #geom_label(aes(label = sales_text)) + # Adding labels to the bars
-  #geom_smooth(method = "lm", se = FALSE) + # Adding a trendline
-  
-  # Formatting
-  
+  geom_col(fill = "#CC99FF") + 
   scale_y_continuous(labels = scales::dollar_format(big.mark = ".", 
                                                     decimal.mark = ",", 
                                                     prefix = "", 
@@ -116,15 +108,8 @@ bikecity_orderlines_wrangled_tbl%>%
                                      suffix = " €"))%>%
   ggplot(aes(x=year,y=total_sales), fill = state) +
   
-  # Geometries
-  geom_col(fill = "#CC99FF") + # Use geom_col for a bar plot
-  #geom_label(aes(label = sales_text)) + # Adding labels to the bars
-  #geom_smooth(method = "lm", se = FALSE) + # Adding a trendline
+  geom_col(fill = "#CC99FF") + 
   facet_wrap(~ state) +
-  
-  # Formatting
-  #scale_y_continuous(labels = scales::dollar) + # Change the y-axis. 
-  # Again, we have to adjust it for euro values
   scale_y_continuous(labels = scales::dollar_format(big.mark = ".", 
                                                     decimal.mark = ",", 
                                                     prefix = "", 
@@ -134,7 +119,7 @@ bikecity_orderlines_wrangled_tbl%>%
   
   labs(
     title    = "Revenue by state and year",
-    x = "", # Override defaults for x and y
+    x = "", 
     y = "Revenue"
   )
 ```
@@ -296,3 +281,331 @@ ebikes_prices %>%
 
 ```
 
+# Challenge 3
+
+``` {r, eval = F} 
+
+library(tidyverse)
+library(vroom)
+library(data.table)
+library(lubridate)
+
+col_types <- list(
+  id = col_character(),
+  type = col_character(),
+  number = col_character(),
+  country = col_character(),
+  date = col_date("%Y-%m-%d"),
+  abstract = col_character(),
+  title = col_character(),
+  kind = col_character(),
+  num_claims = col_double(),
+  filename = col_character(),
+  withdrawn = col_double()
+)
+
+patent_tbl <- vroom(
+  file       = "DS_101/00_data/patent.tsv",
+  delim      = "\t",
+  col_types  = col_types,
+  na         = c("", "NA", "NULL")
+)
+
+# 1. Assignee ----
+
+col_types <- list(
+  id = col_character(),
+  type = col_integer(),
+  name_first = col_character(),
+  name_last = col_character(),
+  organization = col_character()
+)
+
+assignee_tbl <- vroom(
+  file       = "DS_101/00_data/assignee.tsv",
+  delim      = "\t",
+  col_types  = col_types,
+  na         = c("", "NA", "NULL")
+)
+
+
+ # 2. Patent Assignee ----
+
+col_types <- list(
+  patent_id = col_character(),
+  assignee_id = col_character(),
+  location_id = col_character()
+)
+
+patent_assignee_tbl <- vroom(
+  file       = "DS_101/00_data/patent_assignee.tsv",
+  delim      = "\t",
+  col_types  = col_types,
+  na         = c("", "NA", "NULL")
+)
+
+# 3. USPC ----
+
+col_types <- list(
+  uuid = col_character(),
+  patent_id = col_character(),
+  mainclass_id = col_character(),
+  subclass_id = col_character(),
+  sequence = col_integer()
+)
+
+uspc_tbl <- vroom(
+  file       = "DS_101/00_data/uspc.tsv",
+  delim      = "\t",
+  col_types  = col_types,
+  na         = c("", "NA", "NULL")
+)
+
+rm(col_types)
+
+patent_id_date_tbl <- patent_tbl %>%
+  select(id, date)
+
+uspc_tbl <- uspc_tbl %>%
+  select(patent_id, mainclass_id)
+
+patent_id_date_tbl <- patent_id_date_tbl %>%
+  rename(c("patent_id" = "id"))
+
+patent_assignee_tbl <- patent_assignee_tbl %>%
+  rename(c("id"= "assignee_id"))
+
+combined_assignee_data <- merge(x = assignee_tbl, y = patent_assignee_tbl,
+                       by    = "id",
+                       all.x = TRUE,
+                       all.y = TRUE) %>%
+  glimpse()
+
+combined_patent_data <- merge(x = combined_assignee_data ,
+                              y = patent_id_date_tbl,
+                              by = "patent_id",
+                              all.x = TRUE,
+                              all.y = TRUE) %>%
+  glimpse()
+
+combined_all_data <- merge(x = combined_patent_data, y = uspc_tbl,
+                           by = "patent_id",
+                           all.x = TRUE,
+                           all.y = TRUE) %>%
+  glimpse()
+
+setDT(combined_assignee_data)
+setDT(combined_patent_data)
+setDT(combined_all_data)
+
+saveRDS(combined_assignee_data,"/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_assignee_data.rds")
+saveRDS(combined_patent_data, "/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_patent_data.rds")
+saveRDS(combined_all_data, "/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_all_data.rds")
+
+ combined_assignee_data <- readRDS("/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_assignee_data.rds")
+ combined_patent_data <- readRDS("/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_patent_data.rds")
+ combined_all_data <- readRDS("/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_all_data.rds")
+
+# ASSIGNEMENT 1: TOP 10 US COMPANIES ----
+
+us_companies_tbl <- combined_assignee_data[type == 2, .N, by = organization] %>% 
+  arrange(desc(N)) %>%
+  slice(1:10)
+us_companies_tbl
+
+# 2. ASSIGNEMENT: TOP 10 US COMPANIES NEW PATENTS ----
+
+combined_patent_data <- combined_patent_data[,date := lubridate::year(date)]
+
+us2_companies_tbl <- combined_patent_data[type == 2, list(patent_id, id, type,
+                                                          organization, date), by = organization]
+
+us2019_companies_tbl <- us2_companies_tbl[date == 2019, .N, by = organization] %>%
+  arrange(desc(N)) %>%
+  slice(1:10)
+ us2019_companies_tbl
+ 
+ # 3. ASSIGNEMENT: MOST INNOVATIVE TECH SECTOR ----
+ 
+ companies_ww <- combined_all_data[type == 2 | 3, list(patent_id, type,
+                                                           id, mainclass_id), by = organization]
+ 
+ top_companies_ww <- companies_ww[type == 2 | 3, .N, by = organization]
+ 
+ top_companies_ww <- top_companies_ww[c(!is.na(organization))]%>%
+   arrange(desc(N)) %>%
+   slice(1:10)
+ top_companies_ww
+ 
+ companies_ww <- companies_ww[c(!is.na(mainclass_id))]
+
+ old.top_uspto_lst <- companies_ww[organization == top_companies_ww$organization[1], .N, by = mainclass_id]
+ old.top_uspto_lst <- setDT(old.top_uspto_lst)
+
+ for (i in 2:10 ) {
+   
+   top_uspto <- companies_ww[organization == top_companies_ww$organization[i], .N, by = mainclass_id]
+   top_uspto <- setDT(top_uspto)
+   
+   top_uspto <- merge(x = top_uspto, y = old.top_uspto_lst,
+                         by = "mainclass_id",
+                         all.x = TRUE,
+                         all.y = TRUE)
+   
+   top_uspto <- setDT(top_uspto)
+   
+   top_uspto[is.na(top_uspto)] <- 0 
+   
+   top_uspto <- top_uspto%>%
+     group_by(mainclass_id) %>%
+     summarize(N = N.x + N.y) %>%
+     arrange(desc(N))
+   
+   old.top_uspto_lst <- top_uspto
+ }
+ 
+ rm(old.top_uspto_lst)
+ 
+ top_uspto <- top_uspto %>%
+   slice(1:5)
+ top_uspto
+
+ saveRDS(us_companies_tbl, "/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/us_companies_tbl.rds")
+ saveRDS(us2019_companies_tbl, "/Users/Lotta/Documents/Data Science/DS_101/02_data_wranglingus2019_companies_tbl.rds")
+ saveRDS(top_companies_ww, "/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/top_companies_ww.rds")
+ saveRDS(top_uspto, "/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/top_uspto.rds")
+ 
+```
+
+``` {r}
+
+us_companies_tbl <- readRDS("/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/us_companies_tbl.rds")
+ us2019_companies_tbl <- readRDS("/Users/Lotta/Documents/Data Science/DS_101/02_data_wranglingus2019_companies_tbl.rds")
+ top_companies_ww <- readRDS("/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/top_companies_ww.rds")
+ top_uspto <- readRDS("/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/top_uspto.rds")
+ 
+ us_companies_tbl
+ us2019_companies_tbl
+ top_companies_ww
+ top_uspto
+
+```
+
+# Challenge 4
+
+```{r}
+
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(RColorBrewer)
+library(stringr)
+library(reshape2)
+library(maps)
+
+# CHALLENGE 1 ----
+
+covid_data_tbl <- read_csv("https://opendata.ecdc.europa.eu/covid19/casedistribution/csv") %>%
+  mutate(across(countriesAndTerritories, str_replace_all, "_", " ")) %>%
+  mutate(countriesAndTerritories = case_when(
+
+    countriesAndTerritories == "United Kingdom" ~ "UK",
+    countriesAndTerritories == "United States of America" ~ "USA",
+    countriesAndTerritories == "Czechia" ~ "Czech Republic",
+    TRUE ~ countriesAndTerritories
+
+  )) %>%
+  glimpse()
+
+covid_cases_tbl <- covid_data_tbl %>%
+  select(dateRep,day, month, year, cases, countriesAndTerritories) %>%
+  glimpse()
+
+covid_cases_tbl <- covid_cases_tbl %>%
+  pivot_wider(names_from = "countriesAndTerritories",
+              values_from = "cases") %>%
+  select(dateRep, day, month, year, Germany, UK, USA, France, Spain)
+
+covid_cases_tbl <- covid_cases_tbl[order(as.Date(covid_cases_tbl$dateRep, format = "%d/%m/%Y")),]
+
+covid_cum_tbl1 <- data.frame(covid_cases_tbl) %>%
+  mutate(Germany = cumsum(Germany),
+         UK = cumsum(UK),
+         USA = cumsum(USA),
+         France = cumsum(France),
+         Spain = cumsum(Spain))%>%
+  mutate(USA_cases_text = scales::dollar(USA,
+                                     prefix = "",
+                                     suffix = "",
+                                     big.mark = ".",
+                                     decimal.mark = ","))
+
+covid_cum_tbl1 <- covid_cum_tbl1 %>% 
+  mutate(date = lubridate::dmy(dateRep)) %>% 
+  mutate(date_floor = floor_date(date, unit = "month")) 
+  
+covid_cum_tbl <- melt(covid_cum_tbl1[,c("date", "Germany", "UK", "USA", "France", "Spain")],
+                      id.vars = "date")
+
+ggplot(covid_cum_tbl, aes(date, value, col = variable)) +
+  geom_line() +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Year 2020", y = "Cumulative cases", title = "COVID-19 confirmed cases worldwide",
+       subtitle = str_glue("As of {first(covid_data_tbl$dateRep)}, the United States of America have {last(covid_cum_tbl1$USA_cases_text)} cases")) +
+  geom_label(data = covid_cum_tbl %>% filter(variable == "USA" & value == last(covid_cum_tbl1$USA)), 
+             aes(label = str_glue("{last(covid_cum_tbl1$USA_cases_text)}")),
+             hjust = "inward",
+             size = 3,
+             color = "white",
+             fill = RColorBrewer::brewer.pal(n = 3, name = "Dark2")[3]) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%B") +
+  scale_y_continuous(limits = c(0,15000000),
+    breaks = c(0, 2500000, 5000000, 7500000, 10000000, 12500000, 15000000),
+    labels = c("0,0 M", "2,5 M", "5,0 M", "7,5 M", "10,0 M", "12,5 M", "15,0 M")) +
+  scale_color_manual("Country", values = brewer.pal(n = 5, name = "Dark2"),
+                     labels = c("Germany", "United Kindom",
+                                "United States of America", 
+                                "France", "Spain"))
+  
+
+# CHALLENGE 2 ----
+
+world <- map_data("world")
+
+covid_death_rate <- covid_data_tbl %>%
+  select(deaths, countriesAndTerritories, popData2019) %>%
+  mutate(death_rate = deaths/popData2019) %>%
+  rename("region" = "countriesAndTerritories")%>%
+  group_by(region) %>%
+  summarise(sum_mortality = sum(death_rate)) %>%
+  ungroup()
+
+world_combined <- left_join(x = world, y = covid_death_rate,
+                            by = "region")
+
+world_combined %>% ggplot(aes(fill = sum_mortality)) +
+  geom_map(aes(map_id = region), map = world) +
+  expand_limits(x = world$long, y = world$lat) +
+  labs(title = "Confirmed COVID-19 deaths relative to the population size", 
+       subtitle = str_glue("{sum(covid_data_tbl$deaths)} confirmed COVID-19 deaths worldwide on {first(covid_data_tbl$dateRep)}"), 
+       fill = "Mortality Rate") +
+  scale_fill_gradient(low = "#CC0000", high = "#660000", 
+                       limits = c(0, 0.00120), 
+                        breaks = c(0, 0.00030, 0.00060, 0.00090, 0.00120),
+                        labels = c("0.000 %", "0.030 %",
+                                   "0.060 %", "0.090 %",
+                                   "0.120 %"),
+                      guide = guide_colourbar(nbin = 10)) +
+  scale_y_continuous(limits = c(-90, 90),
+                     breaks = c(-90, -45, 0, 45, 90),
+                     labels = c("-90 º", "-45 º", "0 º", "45 º", "90 º")) +
+  scale_x_continuous(limits = c(-180, 180),
+                     breaks = c(-180, -90, 0, 90, 180),
+                     labels = c("-180 º", "-90 º", "0 º", "90 º", "180 º")) +
+  theme_minimal() +
+  xlab(NULL) +
+  ylab(NULL)
+
+
+```

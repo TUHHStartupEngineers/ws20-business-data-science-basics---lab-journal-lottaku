@@ -464,17 +464,9 @@ bikecity_orderlines_wrangled_tbl%&gt;%
                                      decimal.mark = &quot;,&quot;, 
                                      prefix = &quot;&quot;, 
                                      suffix = &quot; €&quot;))%&gt;%
-
-#bikecity_orderlines_wrangled_tbl%&gt;%
   ggplot(aes(x=state,y=total_sales)) +
   
-  # Geometries
-  geom_col(fill = &quot;#CC99FF&quot;) + # Use geom_col for a bar plot
-  #geom_label(aes(label = sales_text)) + # Adding labels to the bars
-  #geom_smooth(method = &quot;lm&quot;, se = FALSE) + # Adding a trendline
-  
-  # Formatting
-  
+  geom_col(fill = &quot;#CC99FF&quot;) + 
   scale_y_continuous(labels = scales::dollar_format(big.mark = &quot;.&quot;, 
                                                     decimal.mark = &quot;,&quot;, 
                                                     prefix = &quot;&quot;, 
@@ -501,15 +493,8 @@ bikecity_orderlines_wrangled_tbl%&gt;%
                                      suffix = &quot; €&quot;))%&gt;%
   ggplot(aes(x=year,y=total_sales), fill = state) +
   
-  # Geometries
-  geom_col(fill = &quot;#CC99FF&quot;) + # Use geom_col for a bar plot
-  #geom_label(aes(label = sales_text)) + # Adding labels to the bars
-  #geom_smooth(method = &quot;lm&quot;, se = FALSE) + # Adding a trendline
+  geom_col(fill = &quot;#CC99FF&quot;) + 
   facet_wrap(~ state) +
-  
-  # Formatting
-  #scale_y_continuous(labels = scales::dollar) + # Change the y-axis. 
-  # Again, we have to adjust it for euro values
   scale_y_continuous(labels = scales::dollar_format(big.mark = &quot;.&quot;, 
                                                     decimal.mark = &quot;,&quot;, 
                                                     prefix = &quot;&quot;, 
@@ -519,7 +504,7 @@ bikecity_orderlines_wrangled_tbl%&gt;%
   
   labs(
     title    = &quot;Revenue by state and year&quot;,
-    x = &quot;&quot;, # Override defaults for x and y
+    x = &quot;&quot;, 
     y = &quot;Revenue&quot;
   )</code></pre>
 <p><img src="journal_files/figure-html/unnamed-chunk-2-2.png" width="672" /></p>
@@ -729,6 +714,382 @@ ebikes_prices %&gt;%
 ##  8 &quot;XTRA WATT EVO ENVIOLO HERREN &quot;                 4249
 ##  9 &quot;XTRA WATT EVO ALFINE 11 UNISEX &quot;               3899
 ## 10 &quot;XTRA WATT EVO ALFINE 8 UNISEX &quot;                2899</code></pre>
+</div>
+<div id="challenge-3" class="section level1">
+<h1><span class="header-section-number">6</span> Challenge 3</h1>
+<pre class="r"><code>library(tidyverse)
+library(vroom)
+library(data.table)
+library(lubridate)
+
+col_types &lt;- list(
+  id = col_character(),
+  type = col_character(),
+  number = col_character(),
+  country = col_character(),
+  date = col_date(&quot;%Y-%m-%d&quot;),
+  abstract = col_character(),
+  title = col_character(),
+  kind = col_character(),
+  num_claims = col_double(),
+  filename = col_character(),
+  withdrawn = col_double()
+)
+
+patent_tbl &lt;- vroom(
+  file       = &quot;DS_101/00_data/patent.tsv&quot;,
+  delim      = &quot;\t&quot;,
+  col_types  = col_types,
+  na         = c(&quot;&quot;, &quot;NA&quot;, &quot;NULL&quot;)
+)
+
+# 1. Assignee ----
+
+col_types &lt;- list(
+  id = col_character(),
+  type = col_integer(),
+  name_first = col_character(),
+  name_last = col_character(),
+  organization = col_character()
+)
+
+assignee_tbl &lt;- vroom(
+  file       = &quot;DS_101/00_data/assignee.tsv&quot;,
+  delim      = &quot;\t&quot;,
+  col_types  = col_types,
+  na         = c(&quot;&quot;, &quot;NA&quot;, &quot;NULL&quot;)
+)
+
+
+ # 2. Patent Assignee ----
+
+col_types &lt;- list(
+  patent_id = col_character(),
+  assignee_id = col_character(),
+  location_id = col_character()
+)
+
+patent_assignee_tbl &lt;- vroom(
+  file       = &quot;DS_101/00_data/patent_assignee.tsv&quot;,
+  delim      = &quot;\t&quot;,
+  col_types  = col_types,
+  na         = c(&quot;&quot;, &quot;NA&quot;, &quot;NULL&quot;)
+)
+
+# 3. USPC ----
+
+col_types &lt;- list(
+  uuid = col_character(),
+  patent_id = col_character(),
+  mainclass_id = col_character(),
+  subclass_id = col_character(),
+  sequence = col_integer()
+)
+
+uspc_tbl &lt;- vroom(
+  file       = &quot;DS_101/00_data/uspc.tsv&quot;,
+  delim      = &quot;\t&quot;,
+  col_types  = col_types,
+  na         = c(&quot;&quot;, &quot;NA&quot;, &quot;NULL&quot;)
+)
+
+rm(col_types)
+
+patent_id_date_tbl &lt;- patent_tbl %&gt;%
+  select(id, date)
+
+uspc_tbl &lt;- uspc_tbl %&gt;%
+  select(patent_id, mainclass_id)
+
+patent_id_date_tbl &lt;- patent_id_date_tbl %&gt;%
+  rename(c(&quot;patent_id&quot; = &quot;id&quot;))
+
+patent_assignee_tbl &lt;- patent_assignee_tbl %&gt;%
+  rename(c(&quot;id&quot;= &quot;assignee_id&quot;))
+
+combined_assignee_data &lt;- merge(x = assignee_tbl, y = patent_assignee_tbl,
+                       by    = &quot;id&quot;,
+                       all.x = TRUE,
+                       all.y = TRUE) %&gt;%
+  glimpse()
+
+combined_patent_data &lt;- merge(x = combined_assignee_data ,
+                              y = patent_id_date_tbl,
+                              by = &quot;patent_id&quot;,
+                              all.x = TRUE,
+                              all.y = TRUE) %&gt;%
+  glimpse()
+
+combined_all_data &lt;- merge(x = combined_patent_data, y = uspc_tbl,
+                           by = &quot;patent_id&quot;,
+                           all.x = TRUE,
+                           all.y = TRUE) %&gt;%
+  glimpse()
+
+setDT(combined_assignee_data)
+setDT(combined_patent_data)
+setDT(combined_all_data)
+
+saveRDS(combined_assignee_data,&quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_assignee_data.rds&quot;)
+saveRDS(combined_patent_data, &quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_patent_data.rds&quot;)
+saveRDS(combined_all_data, &quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_all_data.rds&quot;)
+
+ combined_assignee_data &lt;- readRDS(&quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_assignee_data.rds&quot;)
+ combined_patent_data &lt;- readRDS(&quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_patent_data.rds&quot;)
+ combined_all_data &lt;- readRDS(&quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_all_data.rds&quot;)
+
+# ASSIGNEMENT 1: TOP 10 US COMPANIES ----
+
+us_companies_tbl &lt;- combined_assignee_data[type == 2, .N, by = organization] %&gt;% 
+  arrange(desc(N)) %&gt;%
+  slice(1:10)
+us_companies_tbl
+
+# 2. ASSIGNEMENT: TOP 10 US COMPANIES NEW PATENTS ----
+
+combined_patent_data &lt;- combined_patent_data[,date := lubridate::year(date)]
+
+us2_companies_tbl &lt;- combined_patent_data[type == 2, list(patent_id, id, type,
+                                                          organization, date), by = organization]
+
+us2019_companies_tbl &lt;- us2_companies_tbl[date == 2019, .N, by = organization] %&gt;%
+  arrange(desc(N)) %&gt;%
+  slice(1:10)
+ us2019_companies_tbl
+ 
+ # 3. ASSIGNEMENT: MOST INNOVATIVE TECH SECTOR ----
+ 
+ companies_ww &lt;- combined_all_data[type == 2 | 3, list(patent_id, type,
+                                                           id, mainclass_id), by = organization]
+ 
+ top_companies_ww &lt;- companies_ww[type == 2 | 3, .N, by = organization]
+ 
+ top_companies_ww &lt;- top_companies_ww[c(!is.na(organization))]%&gt;%
+   arrange(desc(N)) %&gt;%
+   slice(1:10)
+ top_companies_ww
+ 
+ companies_ww &lt;- companies_ww[c(!is.na(mainclass_id))]
+
+ old.top_uspto_lst &lt;- companies_ww[organization == top_companies_ww$organization[1], .N, by = mainclass_id]
+ old.top_uspto_lst &lt;- setDT(old.top_uspto_lst)
+
+ for (i in 2:10 ) {
+   
+   top_uspto &lt;- companies_ww[organization == top_companies_ww$organization[i], .N, by = mainclass_id]
+   top_uspto &lt;- setDT(top_uspto)
+   
+   top_uspto &lt;- merge(x = top_uspto, y = old.top_uspto_lst,
+                         by = &quot;mainclass_id&quot;,
+                         all.x = TRUE,
+                         all.y = TRUE)
+   
+   top_uspto &lt;- setDT(top_uspto)
+   
+   top_uspto[is.na(top_uspto)] &lt;- 0 
+   
+   top_uspto &lt;- top_uspto%&gt;%
+     group_by(mainclass_id) %&gt;%
+     summarize(N = N.x + N.y) %&gt;%
+     arrange(desc(N))
+   
+   old.top_uspto_lst &lt;- top_uspto
+ }
+ 
+ rm(old.top_uspto_lst)
+ 
+ top_uspto &lt;- top_uspto %&gt;%
+   slice(1:5)
+ top_uspto
+
+ saveRDS(us_companies_tbl, &quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/us_companies_tbl.rds&quot;)
+ saveRDS(us2019_companies_tbl, &quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wranglingus2019_companies_tbl.rds&quot;)
+ saveRDS(top_companies_ww, &quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/top_companies_ww.rds&quot;)
+ saveRDS(top_uspto, &quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/top_uspto.rds&quot;)</code></pre>
+<pre class="r"><code>us_companies_tbl &lt;- readRDS(&quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/us_companies_tbl.rds&quot;)
+ us2019_companies_tbl &lt;- readRDS(&quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wranglingus2019_companies_tbl.rds&quot;)
+ top_companies_ww &lt;- readRDS(&quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/top_companies_ww.rds&quot;)
+ top_uspto &lt;- readRDS(&quot;/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/top_uspto.rds&quot;)
+ 
+ us_companies_tbl</code></pre>
+<pre><code>##                                    organization      N
+##  1: International Business Machines Corporation 139092
+##  2:                    General Electric Company  47122
+##  3:                           Intel Corporation  42157
+##  4:   Hewlett-Packard Development Company, L.P.  35573
+##  5:                       Microsoft Corporation  30086
+##  6:                     Micron Technology, Inc.  28001
+##  7:                       QUALCOMM Incorporated  24703
+##  8:              Texas Instruments Incorporated  24182
+##  9:                           Xerox Corporation  23174
+## 10:                                  Apple Inc.  21821</code></pre>
+<pre class="r"><code> us2019_companies_tbl</code></pre>
+<pre><code>##                                    organization    N
+##  1: International Business Machines Corporation 9265
+##  2:                           Intel Corporation 3526
+##  3:         Microsoft Technology Licensing, LLC 3106
+##  4:                                  Apple Inc. 2817
+##  5:               Ford Global Technologies, LLC 2624
+##  6:                   Amazon Technologies, Inc. 2533
+##  7:                       QUALCOMM Incorporated 2359
+##  8:                                 Google Inc. 2290
+##  9:                    General Electric Company 1860
+## 10:   Hewlett-Packard Development Company, L.P. 1589</code></pre>
+<pre class="r"><code> top_companies_ww</code></pre>
+<pre><code>##                                    organization      N
+##  1: International Business Machines Corporation 345119
+##  2:               Samsung Electronics Co., Ltd. 204839
+##  3:                      Canon Kabushiki Kaisha 187339
+##  4:                    General Electric Company 145474
+##  5:                               Hitachi, Ltd. 140678
+##  6:                    Kabushiki Kaisha Toshiba 139424
+##  7:                            Sony Corporation 138639
+##  8:                             Fujitsu Limited 103375
+##  9:                           Intel Corporation  98654
+## 10:    Matsushita Electric Industrial Co., Ltd.  98039</code></pre>
+<pre class="r"><code> top_uspto</code></pre>
+<pre><code>## # A tibble: 5 x 2
+##   mainclass_id     N
+##   &lt;chr&gt;        &lt;dbl&gt;
+## 1 257          93632
+## 2 438          53918
+## 3 365          40176
+## 4 370          35577
+## 5 358          34880</code></pre>
+</div>
+<div id="challenge-4" class="section level1">
+<h1><span class="header-section-number">7</span> Challenge 4</h1>
+<pre class="r"><code>library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(RColorBrewer)
+library(stringr)
+library(reshape2)
+library(maps)
+
+# CHALLENGE 1 ----
+
+covid_data_tbl &lt;- read_csv(&quot;https://opendata.ecdc.europa.eu/covid19/casedistribution/csv&quot;) %&gt;%
+  mutate(across(countriesAndTerritories, str_replace_all, &quot;_&quot;, &quot; &quot;)) %&gt;%
+  mutate(countriesAndTerritories = case_when(
+
+    countriesAndTerritories == &quot;United Kingdom&quot; ~ &quot;UK&quot;,
+    countriesAndTerritories == &quot;United States of America&quot; ~ &quot;USA&quot;,
+    countriesAndTerritories == &quot;Czechia&quot; ~ &quot;Czech Republic&quot;,
+    TRUE ~ countriesAndTerritories
+
+  )) %&gt;%
+  glimpse()</code></pre>
+<pre><code>## Rows: 59,983
+## Columns: 12
+## $ dateRep                                                      &lt;chr&gt; &quot;05/12/2…
+## $ day                                                          &lt;dbl&gt; 5, 4, 3,…
+## $ month                                                        &lt;dbl&gt; 12, 12, …
+## $ year                                                         &lt;dbl&gt; 2020, 20…
+## $ cases                                                        &lt;dbl&gt; 235, 119…
+## $ deaths                                                       &lt;dbl&gt; 18, 5, 1…
+## $ countriesAndTerritories                                      &lt;chr&gt; &quot;Afghani…
+## $ geoId                                                        &lt;chr&gt; &quot;AF&quot;, &quot;A…
+## $ countryterritoryCode                                         &lt;chr&gt; &quot;AFG&quot;, &quot;…
+## $ popData2019                                                  &lt;dbl&gt; 38041757…
+## $ continentExp                                                 &lt;chr&gt; &quot;Asia&quot;, …
+## $ `Cumulative_number_for_14_days_of_COVID-19_cases_per_100000` &lt;dbl&gt; 7.115865…</code></pre>
+<pre class="r"><code>covid_cases_tbl &lt;- covid_data_tbl %&gt;%
+  select(dateRep,day, month, year, cases, countriesAndTerritories) %&gt;%
+  glimpse()</code></pre>
+<pre><code>## Rows: 59,983
+## Columns: 6
+## $ dateRep                 &lt;chr&gt; &quot;05/12/2020&quot;, &quot;04/12/2020&quot;, &quot;03/12/2020&quot;, &quot;02…
+## $ day                     &lt;dbl&gt; 5, 4, 3, 2, 1, 30, 29, 28, 27, 26, 25, 24, 23…
+## $ month                   &lt;dbl&gt; 12, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 1…
+## $ year                    &lt;dbl&gt; 2020, 2020, 2020, 2020, 2020, 2020, 2020, 202…
+## $ cases                   &lt;dbl&gt; 235, 119, 202, 400, 272, 0, 228, 214, 0, 200,…
+## $ countriesAndTerritories &lt;chr&gt; &quot;Afghanistan&quot;, &quot;Afghanistan&quot;, &quot;Afghanistan&quot;, …</code></pre>
+<pre class="r"><code>covid_cases_tbl &lt;- covid_cases_tbl %&gt;%
+  pivot_wider(names_from = &quot;countriesAndTerritories&quot;,
+              values_from = &quot;cases&quot;) %&gt;%
+  select(dateRep, day, month, year, Germany, UK, USA, France, Spain)
+
+covid_cases_tbl &lt;- covid_cases_tbl[order(as.Date(covid_cases_tbl$dateRep, format = &quot;%d/%m/%Y&quot;)),]
+
+covid_cum_tbl1 &lt;- data.frame(covid_cases_tbl) %&gt;%
+  mutate(Germany = cumsum(Germany),
+         UK = cumsum(UK),
+         USA = cumsum(USA),
+         France = cumsum(France),
+         Spain = cumsum(Spain))%&gt;%
+  mutate(USA_cases_text = scales::dollar(USA,
+                                     prefix = &quot;&quot;,
+                                     suffix = &quot;&quot;,
+                                     big.mark = &quot;.&quot;,
+                                     decimal.mark = &quot;,&quot;))
+
+covid_cum_tbl1 &lt;- covid_cum_tbl1 %&gt;% 
+  mutate(date = lubridate::dmy(dateRep)) %&gt;% 
+  mutate(date_floor = floor_date(date, unit = &quot;month&quot;)) 
+  
+covid_cum_tbl &lt;- melt(covid_cum_tbl1[,c(&quot;date&quot;, &quot;Germany&quot;, &quot;UK&quot;, &quot;USA&quot;, &quot;France&quot;, &quot;Spain&quot;)],
+                      id.vars = &quot;date&quot;)
+
+ggplot(covid_cum_tbl, aes(date, value, col = variable)) +
+  geom_line() +
+  theme(legend.position = &quot;bottom&quot;, 
+        axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = &quot;Year 2020&quot;, y = &quot;Cumulative cases&quot;, title = &quot;COVID-19 confirmed cases worldwide&quot;,
+       subtitle = str_glue(&quot;As of {first(covid_data_tbl$dateRep)}, the United States of America have {last(covid_cum_tbl1$USA_cases_text)} cases&quot;)) +
+  geom_label(data = covid_cum_tbl %&gt;% filter(variable == &quot;USA&quot; &amp; value == last(covid_cum_tbl1$USA)), 
+             aes(label = str_glue(&quot;{last(covid_cum_tbl1$USA_cases_text)}&quot;)),
+             hjust = &quot;inward&quot;,
+             size = 3,
+             color = &quot;white&quot;,
+             fill = RColorBrewer::brewer.pal(n = 3, name = &quot;Dark2&quot;)[3]) +
+  scale_x_date(date_breaks = &quot;1 month&quot;, date_labels = &quot;%B&quot;) +
+  scale_y_continuous(limits = c(0,15000000),
+    breaks = c(0, 2500000, 5000000, 7500000, 10000000, 12500000, 15000000),
+    labels = c(&quot;0,0 M&quot;, &quot;2,5 M&quot;, &quot;5,0 M&quot;, &quot;7,5 M&quot;, &quot;10,0 M&quot;, &quot;12,5 M&quot;, &quot;15,0 M&quot;)) +
+  scale_color_manual(&quot;Country&quot;, values = brewer.pal(n = 5, name = &quot;Dark2&quot;),
+                     labels = c(&quot;Germany&quot;, &quot;United Kindom&quot;,
+                                &quot;United States of America&quot;, 
+                                &quot;France&quot;, &quot;Spain&quot;))</code></pre>
+<p><img src="journal_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<pre class="r"><code># CHALLENGE 2 ----
+
+world &lt;- map_data(&quot;world&quot;)
+
+covid_death_rate &lt;- covid_data_tbl %&gt;%
+  select(deaths, countriesAndTerritories, popData2019) %&gt;%
+  mutate(death_rate = deaths/popData2019) %&gt;%
+  rename(&quot;region&quot; = &quot;countriesAndTerritories&quot;)%&gt;%
+  group_by(region) %&gt;%
+  summarise(sum_mortality = sum(death_rate)) %&gt;%
+  ungroup()
+
+world_combined &lt;- left_join(x = world, y = covid_death_rate,
+                            by = &quot;region&quot;)
+
+world_combined %&gt;% ggplot(aes(fill = sum_mortality)) +
+  geom_map(aes(map_id = region), map = world) +
+  expand_limits(x = world$long, y = world$lat) +
+  labs(title = &quot;Confirmed COVID-19 deaths relative to the population size&quot;, 
+       subtitle = str_glue(&quot;{sum(covid_data_tbl$deaths)} confirmed COVID-19 deaths worldwide on {first(covid_data_tbl$dateRep)}&quot;), 
+       fill = &quot;Mortality Rate&quot;) +
+  scale_fill_gradient(low = &quot;#CC0000&quot;, high = &quot;#660000&quot;, 
+                       limits = c(0, 0.00120), 
+                        breaks = c(0, 0.00030, 0.00060, 0.00090, 0.00120),
+                        labels = c(&quot;0.000 %&quot;, &quot;0.030 %&quot;,
+                                   &quot;0.060 %&quot;, &quot;0.090 %&quot;,
+                                   &quot;0.120 %&quot;),
+                      guide = guide_colourbar(nbin = 10)) +
+  scale_y_continuous(limits = c(-90, 90),
+                     breaks = c(-90, -45, 0, 45, 90),
+                     labels = c(&quot;-90 º&quot;, &quot;-45 º&quot;, &quot;0 º&quot;, &quot;45 º&quot;, &quot;90 º&quot;)) +
+  scale_x_continuous(limits = c(-180, 180),
+                     breaks = c(-180, -90, 0, 90, 180),
+                     labels = c(&quot;-180 º&quot;, &quot;-90 º&quot;, &quot;0 º&quot;, &quot;90 º&quot;, &quot;180 º&quot;)) +
+  theme_minimal() +
+  xlab(NULL) +
+  ylab(NULL)</code></pre>
+<p><img src="journal_files/figure-html/unnamed-chunk-6-2.png" width="672" /></p>
 </div>
 
 
