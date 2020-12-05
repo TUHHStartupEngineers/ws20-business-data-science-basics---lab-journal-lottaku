@@ -138,3 +138,161 @@ bikecity_orderlines_wrangled_tbl%>%
     y = "Revenue"
   )
 ```
+
+# Challenge 2
+
+``` {r}
+# API Random taco ----
+
+library(httr)
+library(jsonlite)
+library(tidyverse)
+
+resp <- GET("http://taco-randomizer.herokuapp.com//random/?full-taco=true")
+
+taco_random <- rawToChar(resp$content) %>%
+  fromJSON()
+taco_random
+
+# WEB SCRAPING ----
+
+library(tidyverse)
+library(jsonlite)
+library(purrr)
+library(RSQLite)
+library(httr)
+library(rvest)
+library(stringi)
+library(glue)
+library(xopen)
+
+url_home = "https://www.rosebikes.de"
+
+html_home = read_html(url_home)
+
+rose_bikes_ref_tbl <- html_home %>%
+  html_nodes(css = ".main-navigation-category-with-tiles__list .main-navigation-category-with-tiles__item > a") %>%
+  html_attr('href') %>%
+  enframe(name = "position", value = "reference") %>%
+  mutate(ref = str_glue("#{reference}"))
+
+ebike_ref <- rose_bikes_ref_tbl$reference[6] 
+
+ebike_url_tbl <- ebike_ref %>%
+  enframe(name = "position", value = "subdirectory") %>%
+  mutate(
+    url = glue("https://www.rosebikes.de{subdirectory}")
+  ) %>%
+  
+  distinct(url)
+
+#xopen(ebike_url_tbl$url)
+
+ebike_model_tbl <- read_html(ebike_url_tbl$url) %>%
+  html_nodes(css = ".sidebar__list__item > a") %>%
+  html_attr('href') %>%
+  enframe(name = "position", value = "reference_model")
+
+ebike_model_tbl <- ebike_model_tbl[-c(1), ] %>%
+  replace(c("position"), values = 1:5)
+
+ebike_model_url_tbl <- ebike_model_tbl %>%
+  mutate(model_url = glue("https://www.rosebikes.de{reference_model}")) %>%
+  distinct(model_url)
+
+#xopen(ebike_model_url_tbl$model_url[1])
+#xopen(ebike_model_url_tbl$model_url[2])
+#xopen(ebike_model_url_tbl$model_url[3])
+#xopen(ebike_model_url_tbl$model_url[4])
+#xopen(ebike_model_url_tbl$model_url[5])
+
+ebike_model1_url <- ebike_model_url_tbl$model_url[1]
+ebike_model2_url <- ebike_model_url_tbl$model_url[2]
+ebike_model3_url <- ebike_model_url_tbl$model_url[3]
+ebike_model4_url <- ebike_model_url_tbl$model_url[4]
+ebike_model5_url <- ebike_model_url_tbl$model_url[5]
+
+bikes_tbl_1 <- read_html(ebike_model1_url) %>%
+  html_nodes(css = ".products-grid__cell-tile > a") %>%
+  html_attr('title') %>%
+  enframe(name = "position", value = "ebike")
+
+bikes_tbl_2 <- read_html(ebike_model2_url) %>%
+  html_nodes(css = ".products-grid__cell-tile > a") %>%
+  html_attr('title') %>%
+  enframe(name = "position", value = "ebike")
+
+bikes_tbl_3 <- read_html(ebike_model3_url) %>%
+  html_nodes(css = ".products-grid__cell-tile > a") %>%
+  html_attr('title') %>%
+  enframe(name = "position", value = "ebike")
+
+bikes_tbl_4 <- read_html(ebike_model4_url) %>%
+  html_nodes(css = ".products-grid__cell-tile > a") %>%
+  html_attr('title') %>%
+  enframe(name = "position", value = "ebike")
+
+bikes_tbl_5 <- read_html(ebike_model5_url) %>%
+  html_nodes(css = ".products-grid__cell-tile > a") %>%
+  html_attr('title') %>%
+  enframe(name = "position", value = "ebike")
+
+ebikes_tbl <- bind_rows(bikes_tbl_1,bikes_tbl_2,bikes_tbl_3,bikes_tbl_4,bikes_tbl_5)
+
+prices_tbl_1 <- read_html(ebike_model1_url) %>%
+  html_nodes(css = ".product-tile-price__current > span") %>%
+  html_text() %>%
+  stringr::str_remove(pattern = "€") %>%
+  stringr::str_remove(pattern = "\\.") %>%
+  stringr::str_replace_all(pattern = ",", replacement = "\\.") %>%
+  as.numeric() %>%
+  enframe(name = "position", value = "price [€]")
+
+prices_tbl_2 <- read_html(ebike_model2_url) %>%
+  html_nodes(css = ".product-tile-price__current > span") %>%
+  html_text() %>%
+  stringr::str_remove(pattern = "€") %>%
+  stringr::str_remove(pattern = "\\.") %>%
+  stringr::str_replace_all(pattern = ",", replacement = "\\.") %>%
+  as.numeric() %>%
+  enframe(name = "position", value = "price [€]")
+
+prices_tbl_3 <- read_html(ebike_model3_url) %>%
+  html_nodes(css = ".product-tile-price__current > span") %>%
+  html_text() %>%
+  stringr::str_remove(pattern = "€") %>%
+  stringr::str_remove(pattern = "\\.") %>%
+  stringr::str_replace_all(pattern = ",", replacement = "\\.") %>%
+  as.numeric() %>%
+  enframe(name = "position", value = "price [€]")
+
+prices_tbl_4 <- read_html(ebike_model4_url) %>%
+  html_nodes(css = ".product-tile-price__current > span") %>%
+  html_text() %>%
+  stringr::str_remove(pattern = "€") %>%
+  stringr::str_remove(pattern = "\\.") %>%
+  stringr::str_replace_all(pattern = ",", replacement = "\\.") %>%
+  as.numeric() %>%
+  enframe(name = "position", value = "price [€]")
+
+prices_tbl_5 <- read_html(ebike_model5_url) %>%
+  html_nodes(css = ".product-tile-price__current > span") %>%
+  html_text() %>%
+  stringr::str_remove(pattern = "€") %>%
+  stringr::str_remove(pattern = "\\.") %>%
+  stringr::str_replace_all(pattern = ",", replacement = "\\.") %>%
+  as.numeric() %>%
+  enframe(name = "position", value = "price [€]")
+
+prices_tbl <- bind_rows(prices_tbl_1,prices_tbl_2,prices_tbl_3,prices_tbl_4,prices_tbl_5)
+
+ebikes_prices <- ebikes_tbl %>%
+  select(c(ebike)) %>%
+  mutate(prices_tbl %>%
+           select(c(2)))
+
+ebikes_prices %>%
+  head(10)
+
+```
+
