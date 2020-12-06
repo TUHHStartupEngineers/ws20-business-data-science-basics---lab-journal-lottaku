@@ -1,7 +1,7 @@
 ---
 title: "Journal (reproducible report)"
 author: "Lotta Kursula"
-date: "2020-11-05"
+date: "2020-12-06"
 output:
   html_document:
     toc: true
@@ -15,43 +15,6 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message=FALSE,warning=FALSE, cache=TRUE)
 ```
-
-**IMPORTANT:** You can delete everything in here and start fresh. You might want to start by not deleting anything above this line until you know what that stuff is doing.
-
-This is an `.Rmd` file. It is plain text with special features. Any time you write just like this, it will be compiled to normal text in the website. If you put a \# in front of your text, it will create a top level-header.
-
-# My first post
-
-Last compiled: `r Sys.Date()`
-
-Notice that whatever you define as a top level header, automatically gets put into the table of contents bar on the left. 
-
-## Second level header
-
-You can add more headers by adding more hashtags. These won't be put into the table of contents
-
-### third level header
-
-Here's an even lower level header
-
-# My second post (note the order)
-
-Last compiled: `r Sys.Date()`
-
-I'm writing this tutorial going from the top down. And, this is how it will be printed. So, notice the second post is second in the list. If you want your most recent post to be at the top, then make a new post starting at the top. If you want the oldest first, do, then keep adding to the bottom
-
-# Adding R stuff
-
-So far this is just a blog where you can write in plain text and serve your writing to a webpage. One of the main purposes of this lab journal is to record your progress learning R. The reason I am asking you to use this process is because you can both make a website, and a lab journal, and learn R all in R-studio. This makes everything really convenient and in the same place. 
-
-So, let's say you are learning how to make a histogram in R. For example, maybe you want to sample 100 numbers from a normal distribution with mean = 0, and standard deviation = 1, and then you want to plot a histogram. You can do this right here by using an r code block, like this:
-
-```{r}
-samples <- rnorm(100, mean=0, sd=1)
-hist(samples)
-```
-
-When you knit this R Markdown document, you will see that the histogram is printed to the page, along with the R code. This document can be set up to hide the R code in the webpage, just delete the comment (hashtag) from the cold folding option in the yaml header up top. For purposes of letting yourself see the code, and me see the code, best to keep it the way that it is. You'll learn that all of these things and more can be customized in each R code block.
 
 # Challenge 1
 
@@ -126,6 +89,8 @@ bikecity_orderlines_wrangled_tbl%>%
 
 # Challenge 2
 
+## API
+
 ``` {r}
 # API Random taco ----
 
@@ -138,6 +103,12 @@ resp <- GET("http://taco-randomizer.herokuapp.com//random/?full-taco=true")
 taco_random <- rawToChar(resp$content) %>%
   fromJSON()
 taco_random
+
+```
+
+## Web Scraping
+
+```{r}
 
 # WEB SCRAPING ----
 
@@ -185,11 +156,11 @@ ebike_model_url_tbl <- ebike_model_tbl %>%
   mutate(model_url = glue("https://www.rosebikes.de{reference_model}")) %>%
   distinct(model_url)
 
-#xopen(ebike_model_url_tbl$model_url[1])
-#xopen(ebike_model_url_tbl$model_url[2])
-#xopen(ebike_model_url_tbl$model_url[3])
-#xopen(ebike_model_url_tbl$model_url[4])
-#xopen(ebike_model_url_tbl$model_url[5])
+# xopen(ebike_model_url_tbl$model_url[1])
+# xopen(ebike_model_url_tbl$model_url[2])
+# xopen(ebike_model_url_tbl$model_url[3])
+# xopen(ebike_model_url_tbl$model_url[4])
+# xopen(ebike_model_url_tbl$model_url[5])
 
 ebike_model1_url <- ebike_model_url_tbl$model_url[1]
 ebike_model2_url <- ebike_model_url_tbl$model_url[2]
@@ -282,6 +253,8 @@ ebikes_prices %>%
 ```
 
 # Challenge 3
+
+## Code
 
 ``` {r, eval = F} 
 
@@ -398,6 +371,8 @@ setDT(combined_assignee_data)
 setDT(combined_patent_data)
 setDT(combined_all_data)
 
+# save & read tables, so I don't have to load, merge, setDT everytime
+
 saveRDS(combined_assignee_data,"/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_assignee_data.rds")
 saveRDS(combined_patent_data, "/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_patent_data.rds")
 saveRDS(combined_all_data, "/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/combined_all_data.rds")
@@ -477,6 +452,8 @@ us2019_companies_tbl <- us2_companies_tbl[date == 2019, .N, by = organization] %
  
 ```
 
+## Results
+
 ``` {r}
 
 us_companies_tbl <- readRDS("/Users/Lotta/Documents/Data Science/DS_101/02_data_wrangling/us_companies_tbl.rds")
@@ -493,6 +470,8 @@ us_companies_tbl <- readRDS("/Users/Lotta/Documents/Data Science/DS_101/02_data_
 
 # Challenge 4
 
+## COVID-19 Cumulative Cases
+
 ```{r}
 
 library(tidyverse)
@@ -504,6 +483,8 @@ library(reshape2)
 library(maps)
 
 # CHALLENGE 1 ----
+
+# At first I thought it would be nice to have the cases sorted in columns by the countries, but then I realized that I cannot plot multiple columns in R. Since I had the cases already sorted I didn't want to change everything, so I used melt(). Apparently, due to a warning when building the website, this function won't be available soon, so probably I should have used pivot_longer()... 
 
 covid_data_tbl <- read_csv("https://opendata.ecdc.europa.eu/covid19/casedistribution/csv") %>%
   mutate(across(countriesAndTerritories, str_replace_all, "_", " ")) %>%
@@ -567,8 +548,12 @@ ggplot(covid_cum_tbl, aes(date, value, col = variable)) +
                      labels = c("Germany", "United Kindom",
                                 "United States of America", 
                                 "France", "Spain"))
-  
 
+```
+
+## COVID-19 Mortality 
+
+```{r plot, fig.width = 11, fig.height = 7}
 # CHALLENGE 2 ----
 
 world <- map_data("world")
